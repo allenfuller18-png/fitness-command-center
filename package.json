@@ -1,0 +1,15 @@
+{
+  "name": "fitness-command-center",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "node --check src/worker.js && node --check public/app.js && npm test",
+    "test": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
