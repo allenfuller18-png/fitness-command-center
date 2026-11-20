@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import worker from '../src/worker.js';
+const env={ASSETS:{fetch:async()=>new Response('STATIC', {status:200})}};
+const root=await worker.fetch(new Request('https://fitness.example.com/'),env);
+assert.equal(root.status,503,'Private site must deny unauthenticated visitors');
+const api=await worker.fetch(new Request('https://fitness.example.com/api/state'),env);
+assert.equal(api.status,503,'API must deny unauthenticated visitors');
+const sw=readFileSync(new URL('../public/sw.js', import.meta.url),'utf8');
+assert.match(sw,/url\.pathname\.startsWith\('\/api\/'\)/,'Offline cache must exclude API responses');
+const html=readFileSync(new URL('../public/index.html', import.meta.url),'utf8');
+for (const asset of ['app.js','style.css','manifest.json','icon.svg']) assert.ok(html.includes(asset),`Missing ${asset}`);
+console.log('PASS: private defaults, API non-cache policy, and HTML asset references');
