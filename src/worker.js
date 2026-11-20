@@ -102,6 +102,20 @@ async function writeState(env,expected,data){
   const version=tag();await googleValues(env,'PUT',{range:"'App Sync'!A1:B"+(chunks.length+1),majorDimension:'ROWS',values:[[version,String(chunks.length)],...chunks.map(x=>[x,''])]});
   return {version};
 }
+// Optional Workers AI coach. Must be explicitly enabled in Cloudflare and voluntarily used by the signed-in owner.
+async function aiCoach(req,env){
+  if(!env.AI || env.AI_ENABLED!=='true')return fail(503,'Live AI coach is not enabled');
+  const raw=await req.text();if(raw.length>4500)return fail(413,'Coach request too large');
+  const input=JSON.parse(raw);const question=String(input.question||'').trim();
+  if(!question || question.length>1200)return fail(400,'Question must be 1 to 1200 characters');
+  const summary=input.shareSummary===true?String(input.summary||'').slice(0,1200):'';
+  const system='You are a supportive workout helper for a beginner doing low-impact home training with dumbbells, resistance bands, bodyweight and walking. Respect fatigue, asthma symptoms and knee/back discomfort. Give concise, specific exercise instructions and suitable gentler alternatives, but never diagnose, prescribe medicine, or tell someone to push through breathing trouble, chest pain, faintness, or worsening pain. Encourage following the person’s asthma care plan and seeking urgent care when appropriate. Exercise changes are suggestions only and require user approval. Distinguish data supplied from assumptions. Do not claim you can access records beyond the supplied summary.';
+  const content='User question: '+question+(summary?'\nVoluntarily shared recent workout summary: '+summary:'\nNo workout records were shared.');
+  const answer=await env.AI.run('@cf/meta/llama-3.1-8b-instruct',{messages:[{role:'system',content:system},{role:'user',content}],max_tokens:320,temperature:0.35});
+  const reply=answer?.response||answer?.choices?.[0]?.message?.content;
+  if(typeof reply!=='string'||!reply.trim())return fail(503,'AI response unavailable');
+  return json({reply:reply.slice(0,3000)});
+}
 function fail(code,message){return json({error:message},code)}
 export default {async fetch(req,env){
   try{
@@ -112,7 +126,8 @@ export default {async fetch(req,env){
       if(origin && origin!==u.origin)return fail(403,'Cross-origin requests are not permitted');
       if(u.pathname.startsWith('/api/') && !req.headers.get('content-type')?.toLowerCase().startsWith('application/json'))return fail(415,'Expected JSON request');
     }
-    if(u.pathname==='/api/status')return json({authenticated:true,account:user.email,sheetsConfigured:Boolean(env.GOOGLE_SERVICE_ACCOUNT_JSON && env.GOOGLE_SHEET_ID),liveAiConfigured:false});
+    if(u.pathname==='/api/status')return json({authenticated:true,account:user.email,sheetsConfigured:Boolean(env.GOOGLE_SERVICE_ACCOUNT_JSON && env.GOOGLE_SHEET_ID),liveAiConfigured:Boolean(env.AI && env.AI_ENABLED==='true')});
+    if(u.pathname==='/api/coach')return req.method==='POST'?aiCoach(req,env):fail(405,'Method not allowed');
     if(u.pathname==='/api/state'){
       if(req.method==='GET')return json(await readState(env));
       if(req.method==='PUT'){
