@@ -117,9 +117,17 @@ async function aiCoach(req,env){
   return json({reply:reply.slice(0,3000)});
 }
 function fail(code,message){return json({error:message},code)}
+function setupPage(status){
+  const title=status===503?'Private setup required':'Sign-in required';
+  const message=status===503
+    ?'This Fitness Command Center deployment is awaiting its private Cloudflare Access configuration. No workout records are publicly available.'
+    :'Cloudflare Access did not provide a verified sign-in session. Sign in through your authorized Cloudflare Access login.';
+  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fitness Command Center — '+title+'</title><style>body{margin:0;background:#101a30;color:#eaf2ff;font:16px system-ui;display:grid;min-height:100vh;place-items:center;padding:20px;box-sizing:border-box}main{max-width:520px;padding:30px;border:1px solid #354765;border-radius:20px;background:#192641}h1{font-size:24px}p{line-height:1.6;color:#cbd5e1}small{color:#93a4c1}</style><main><h1>🔒 '+title+'</h1><p>'+message+'</p><small>Cloudflare Workers · Fitness Command Center</small></main></html>',{status,headers:{'content-type':'text/html;charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','x-frame-options':'DENY','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
+}
+
 export default {async fetch(req,env){
   try{
-    const user=await accessClaims(req,env);if(!user)return fail(401,'Private sign-in required. Configure Cloudflare Access for this Worker.');
+    const user=await accessClaims(req,env);if(!user)return new URL(req.url).pathname.startsWith('/api/')?fail(401,'Private sign-in required'):setupPage(401);
     const u=new URL(req.url);
     if(req.method !== 'GET' && req.method !== 'HEAD'){
       const origin=req.headers.get('origin');
@@ -143,5 +151,5 @@ export default {async fetch(req,env){
     const response=await env.ASSETS.fetch(req);
     const h=new Headers(response.headers);h.set('cache-control','private, no-store');h.set('x-content-type-options','nosniff');h.set('referrer-policy','same-origin');h.set('x-frame-options','DENY');h.set('permissions-policy','geolocation=(), camera=()');h.set('content-security-policy',"default-src 'self'; connect-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
     return new Response(response.body,{status:response.status,statusText:response.statusText,headers:h});
-  }catch(e){return fail(503,'Service temporarily unavailable: '+String(e.message||e).slice(0,170))}
+  }catch(e){if(String(e.message||e).includes('Private Access not configured') && !new URL(req.url).pathname.startsWith('/api/'))return setupPage(503);return fail(503,'Service temporarily unavailable')}
 }};
