@@ -6,7 +6,7 @@ A mobile-first workout, walking, and wellness tracker for a gentle four-week fou
 
 - Complete website source committed: `public/index.html`, `public/app.js`, `public/style.css`, `public/sw.js`, `src/worker.js`, manifest, icon, tests, and Wrangler config.
 - GitHub CI checks pass. The automated workflow tests the code but **does not deploy**.
-- The Cloudflare Worker has **not been created or connected yet**. The Worker fails closed until authentication settings exist.
+- The owner reports completing the Cloudflare Git connection and initial deployment. **Live Worker URL, access policy, and private-data protection have not been independently verified.** The Worker fails closed until authentication settings exist.
 - A native Google Sheets tracker exists, but live sync requires a Google service account and Worker secrets.
 - The assistant inside the app is rules-based; it is **not** a connected AI model. Live AI, email sending, and private push notifications are still future integrations.
 
@@ -49,3 +49,11 @@ npm run dev
 Worker authentication requires properly configured secrets. Local testing of a private site without configured authentication intentionally returns an error.
 
 [Cloudflare Git integration documentation](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/)
+
+## Deployment verification and new safeguards (November 20, 2026)
+
+- A private Google Sheets tracker and the complete GitHub source exist, but **successful GitHub CI is not proof of successful Cloudflare deployment**.
+- Verify that visiting the Worker URL in a logged-out private browser cannot reveal the home page or any health data. Then verify authorized sign-in, `/api/status`, and a non-sensitive test record.
+- Clearing local records no longer attempts to delete the remote Google Sheet. When a local/cloud conflict is resolved by selecting the cloud copy, a local recovery snapshot is saved. Settings includes a **Recover previous local copy** button.
+- An optional Cloudflare Workers AI coach endpoint is present, but **disabled**. To enable it later, add a Workers AI binding named `AI` in Wrangler (or the Cloudflare dashboard), and set `AI_ENABLED=true` as a Worker variable. Inference can incur Cloudflare charges: confirm pricing first. The app asks before sharing a short workout summary; questions are submitted only when the user sends them.
+- No secrets, health records, or private credentials belong in the public repository.
