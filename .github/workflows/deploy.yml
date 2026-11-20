@@ -1,14 +1,6 @@
 name: Deploy Fitness Command Center
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'public/**'
-      - 'src/**'
-      - 'package.json'
-      - 'wrangler.jsonc'
-      - '.github/workflows/deploy.yml'
 permissions:
   contents: read
 jobs:
